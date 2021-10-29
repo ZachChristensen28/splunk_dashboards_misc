@@ -1,0 +1,92 @@
+<form theme="dark">
+    <label>Example - Run SPL</label>
+    <init>
+        <set token="message_tok">true</set>
+    </init>
+    <search id="base">
+        <query>$search_tok$</query>
+        <earliest>$time_tok.earliest$</earliest>
+        <latest>$time_tok.latest$</latest>
+        <sampleRatio>1</sampleRatio>
+    </search>
+    <fieldset submitButton="false" autoRun="false">
+        <input type="time" token="time_tok" searchWhenChanged="true">
+            <label></label>
+            <default>
+                <earliest>0</earliest>
+                <latest></latest>
+            </default>
+        </input>
+        <input type="dropdown" token="search_tok" searchWhenChanged="true">
+            <label>Search Name</label>
+            <fieldForLabel>csearch_name</fieldForLabel>
+            <fieldForValue>search</fieldForValue>
+            <search>
+                <query>| rest splunk_server=local count=0 /services/saved/searches
+| where match('action.correlationsearch.enabled', "1|[Tt]|[Tt][Rr][Uu][Ee]")
+| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain
+| search csearch_name="*"
+| table csearch_name search</query>
+                <earliest>-24h@h</earliest>
+                <latest>now</latest>
+            </search>
+            <change>
+                <condition match="len('value') &gt; 0">
+                    <set token="results_tok">true</set>
+                    <unset token="message_tok"></unset>
+                    <set token="search_label">$label$</set>
+                </condition>
+                <condition>
+                    <unset token="results_tok"></unset>
+                    <set token="message_tok">true</set>
+                    <unset token="search_label" />
+                </condition>
+            </change>
+        </input>
+    </fieldset>
+    <row depends="$message_tok$">
+        <panel>
+            <html>
+                <h1>Please select a search</h1>
+            </html>
+        </panel>
+    </row>
+    <row depends="$results_tok$">
+        <panel>
+            <html>
+                <h1>$search_label$</h1>
+            </html>
+        </panel>
+    </row>
+    <row depends="$results_tok$">
+        <panel>
+            <title>Search</title>
+            <html>
+        $search_tok$
+</html>
+        </panel>
+        <panel>
+            <single>
+                <search base="base">
+                    <query>| stats count</query>
+                </search>
+                <option name="drilldown">none</option>
+                <option name="height">172</option>
+                <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+                <option name="refresh.display">progressbar</option>
+                <option name="underLabel">Events Found</option>
+            </single>
+        </panel>
+    </row>
+    <row depends="$results_tok$">
+        <panel>
+            <table>
+                <search base="base">
+                    <query />
+                </search>
+                <option name="drilldown">none</option>
+                <option name="refresh.display">progressbar</option>
+            </table>
+        </panel>
+    </row>
+</form>

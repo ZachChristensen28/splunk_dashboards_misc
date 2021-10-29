@@ -1,0 +1,167 @@
+<form theme="light" hideFilters="true">
+    <label>Example 3 - Run SPL</label>
+    <search id="time_base">
+        <query>| inputlookup org_csearch_lookup
+| where match("$source_tok$", search_name)
+| eval earliest_time=ltrim(earliest_time, "rt"),
+  latest_time=strptime("$event_time$", "%F %T%z"),
+  earliest_time=if(earliest_time!="0", relative_time(latest_time, earliest_time), 0)</query>
+        <earliest>-1s</earliest>
+        <latest>now</latest>
+        <progress>
+            <condition>
+                <set token="event_time_earliest">$result.earliest_time$</set>
+                <set token="event_time_latest">$result.latest_time$</set>
+            </condition>
+        </progress>
+    </search>
+    <search id="search_base">
+        <query>| inputlookup org_csearch_lookup | where match("$source_tok$", search_name)</query>
+        <earliest>-1s</earliest>
+        <latest>now</latest>
+        <progress>
+            <condition>
+                <set token="spl_tok">$result.search$</set>
+            </condition>
+        </progress>
+    </search>
+    <search id="base">
+        <query>$search_tok$</query>
+        <earliest>$time_tok.earliest$</earliest>
+        <latest>$time_tok.latest$</latest>
+        <sampleRatio>1</sampleRatio>
+    </search>
+    <fieldset submitButton="false" autoRun="false">
+        <input type="time" token="time_tok" searchWhenChanged="true">
+            <label></label>
+            <default>
+                <earliest>0</earliest>
+                <latest></latest>
+            </default>
+        </input>
+        <input type="dropdown" token="search_tok" searchWhenChanged="true">
+            <label>Search Name</label>
+            <fieldForLabel>search_name</fieldForLabel>
+            <fieldForValue>search</fieldForValue>
+            <change>
+                <condition match="len('value') &gt; 0">
+                    <set token="show_table">true</set>
+                    <unset token="hide_table"></unset>
+                    <set token="search_label">$label$</set>
+                </condition>
+                <condition>
+                    <unset token="show_table"></unset>
+                    <set token="hide_table">true</set>
+                    <unset token="search_label"></unset>
+                </condition>
+            </change>
+            <search base="search_base">
+                <query />
+            </search>
+            <choice value="$spl_tok$">Default</choice>
+            <default>$spl_tok$</default>
+        </input>
+        <input type="text" token="event_risk_obj_tok" searchWhenChanged="true">
+            <label>Risk Object</label>
+            <change>
+                <condition match="len('value') &gt; 0">
+                    <set token="event_risk_obj">risk_object="$value$"</set>
+                    <set token="show_results">true</set>
+                    <unset token="message_tok" />
+                </condition>
+                <condition>
+                    <unset token="event_risk_obj"></unset>
+                    <unset token="event_risk_obj_tok"></unset>
+                    <set token="message_tok">true</set>
+                    <unset token="show_results" />
+                </condition>
+            </change>
+        </input>
+    </fieldset>
+    <row depends="$message_tok$">
+        <panel>
+            <html>
+                <h1>Waiting for input</h1>
+            </html>
+        </panel>
+    </row>
+    <row depends="$show_results$">
+        <panel>
+            <html>
+                <h1>Risk Object: $event_risk_obj_tok$</h1>
+            </html>
+        </panel>
+    </row>
+    <row depends="$show_results$">
+        <panel>
+            <chart>
+                <search>
+                    <query>| from datamodel:"Risk.All_Risk"
+| search $event_risk_obj$
+| timechart count by source</query>
+                    <earliest>$time_tok.earliest$</earliest>
+                    <latest>$time_tok.latest$</latest>
+                </search>
+                <option name="charting.axisTitleX.visibility">collapsed</option>
+                <option name="charting.chart">area</option>
+                <option name="charting.drilldown">none</option>
+                <option name="refresh.display">progressbar</option>
+            </chart>
+        </panel>
+    </row>
+    <row depends="$show_results$">
+        <panel>
+            <table>
+                <search>
+                    <query>| from datamodel:"Risk.All_Risk"
+| search $event_risk_obj$
+| table _time risk_object risk_object_type source calculated_risk_score annotations.mitre_attack.mitre_tactic_id annotations.mitre_attack.mitre_technique_id
+| rename annotations.mitre_attack.mitre_tactic_id as mitre_tactic_id, annotations.mitre_attack.mitre_technique_id as mitre_technique_id, _time as time
+| sort - time
+| convert timeformat="%F %T%z" ctime(time)</query>
+                    <earliest>$time_tok.earliest$</earliest>
+                    <latest>$time_tok.latest$</latest>
+                </search>
+                <option name="drilldown">cell</option>
+                <option name="refresh.display">progressbar</option>
+                <drilldown>
+                    <set token="source_tok">$row.source$</set>
+                    <set token="risk_tok">$row.risk_object$</set>
+                    <set token="event_time">$row.time$</set>
+                </drilldown>
+            </table>
+        </panel>
+    </row>
+    <row depends="$show_results$ $show_table$">
+        <panel>
+            <html>
+                <h1>$search_label$</h1>
+            </html>
+        </panel>
+        <panel>
+            <title>Search</title>
+            <html>
+        $spl_tok$
+</html>
+        </panel>
+    </row>
+    <row depends="$hide_table$ $show_results$">
+        <panel>
+            <html>
+                <h1>Select entry to show details</h1>
+            </html>
+        </panel>
+    </row>
+    <row depends=" $show_results$ $show_table$">
+        <panel>
+            <table>
+                <search base="base">
+                    <query>| search (_time&gt;=$event_time_earliest$ AND _time&lt;=$event_time_latest$) (src="$risk_tok$" OR dest="$risk_tok$" OR user="$risk_tok$")
+| sort - _time</query>
+                </search>
+                <option name="drilldown">none</option>
+                <option name="refresh.display">progressbar</option>
+            </table>
+        </panel>
+    </row>
+</form>
