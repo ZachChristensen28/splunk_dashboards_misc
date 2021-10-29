@@ -1,0 +1,5 @@
+WFA
+Label = Examine the Raw Events for Risk Object = $@field_value$
+fiedls = user,src,dest,risk_object
+show action in = both
+uri = /app/search/example_3__run_spl?form.event_risk_obj_tok=$@field_value$

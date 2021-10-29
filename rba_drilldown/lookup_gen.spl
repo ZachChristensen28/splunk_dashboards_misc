@@ -1,0 +1,7 @@
+| rest splunk_server=local count=0 /services/saved/searches
+| search action.correlationsearch.enabled=*
+| rename eai:acl.app as app, title as search_name, action.correlationsearch.label as search_label, action.notable.param.security_domain as security_domain, action.notable.param.severity as severity, action.correlationsearch.enabled as enabled, dispatch.earliest_time as earliest_time, dispatch.latest_time as latest_time, action.risk.param._risk as risk
+| rex field=risk max_match=5 "risk_object_field\":\"(?<risk_object>[^\"]+)"
+| eval enabled=if(match(enabled, "(?i)1|true"), "true", "false")
+| table search_name app security_domain search_label severity earliest_time latest_time risk_object enabled search
+| outputlookup createinapp=true override_if_empty=false create_empty=false org_csearch_lookup
