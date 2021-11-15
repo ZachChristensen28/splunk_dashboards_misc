@@ -1,5 +1,5 @@
 <form theme="light" hideFilters="true">
-  <label>Example 3 - Run SPL</label>
+  <label>Risk Detection Drill Down</label>
   <search id="time_base">
     <query>| inputlookup org_csearch_lookup
 | where match("$source_tok$", search_name)
@@ -36,16 +36,16 @@
   </search>
   <search id="base">
     <query>$search_tok$</query>
-    <earliest>$time_tok.earliest$</earliest>
-    <latest>$time_tok.latest$</latest>
+    <earliest>$event_time_earliest$</earliest>
+    <latest>$event_time_latest$</latest>
     <sampleRatio>1</sampleRatio>
   </search>
   <fieldset submitButton="false" autoRun="false">
     <input type="time" token="time_tok" searchWhenChanged="true">
       <label></label>
       <default>
-        <earliest>0</earliest>
-        <latest></latest>
+        <earliest>-7d@h</earliest>
+        <latest>now</latest>
       </default>
     </input>
     <input type="dropdown" token="search_tok" searchWhenChanged="true">
@@ -171,7 +171,7 @@
     <panel>
       <table>
         <search base="base">
-          <query>| search (_time&gt;=$event_time_earliest$ AND _time&lt;=$event_time_latest$) (src="$risk_tok$" OR dest="$risk_tok$" OR user="$risk_tok$")
+          <query>| search (src="$risk_tok$" OR dest="$risk_tok$" OR user="$risk_tok$")
 | sort - _time</query>
         </search>
         <option name="drilldown">none</option>
